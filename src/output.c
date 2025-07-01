@@ -9,12 +9,13 @@
 
 //the first 6 buckets are dedicated to low frequency audio from 12.5-162.5 Hz
 
-const float numFreqs = 97;
+const float numFreqs = 88;
 
 //first row is C, etc.
 //27.50 is lowest A on a piano, 4186 is highest C
-const float noteFrequencies[97] = {
-		16.35,	17.32,	18.35,	19.45,	20.60,	21.83,	23.12,	24.50,	25.96,	27.50,	29.14,	30.87,
+const float noteFrequencies[88] = {
+		//16.35,	17.32,	18.35,	19.45,	20.60,	21.83,	23.12,	24.50,	25.96,
+		27.50,	29.14,	30.87,
 		32.70,	34.65,	36.71,	38.89,	41.20,	43.65,	46.25,	49,	51.91,	55,	58.27,	61.74,
 		65.41,	69.30,	73.42,	77.78,	82.41,	87.31,	92.50,	98,	103.83,	110,	116.54,	123.47,
 		130.81,	138.59,	146.83,	155.56,	164.81,	174.61,	185,	196,	207.65,	220,	233.08,	246.94,
@@ -90,7 +91,7 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 
 void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
 	uint16_t magnitude[HIGH_N]; //temp and output from the fft
-	uint16_t noteMags[12]; // these will be our main outputs. initializes to 0
+	uint16_t noteMags[256]; // these will be our main outputs. initializes to 0
 	uint16_t lowEnergy;
 	uint16_t energyAverage;
 	int maxFrequencyIndex = 0;
@@ -101,7 +102,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 	//start making output buffer
 	WRITEOUT("SB1.0");
 
-	for (int i = 0; i < 12; i++)
+	for (int i = 0; i < 256; i++)
 	{
 		noteMags[i] = 0;
 	}
@@ -122,6 +123,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 		}
 
 		uint8_t noteNum = 12;
+		float distance = 0;
 		//ensure we're not just above or below the whole range
 		if(j < (numFreqs-2) && currFreq > noteFrequencies[0])
 		{
@@ -129,14 +131,18 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 			//decide which one is closer
 			if((currFreq-noteFrequencies[j]) <= (noteFrequencies[j+1]-currFreq))
 			{
-				noteNum = j%12;
+				distance = (currFreq-noteFrequencies[j]) / noteFrequencies[j];
+				noteNum = j;//%12;
 			}
 			else
 			{
-				noteNum = (j+1)%12;
+				distance = (noteFrequencies[j+1]-currFreq) / noteFrequencies[j+1];
+				noteNum = (j+1);//%12;
 			}
 		}
-		if(noteNum < 12)
+
+		//a note was assigned, and it is reasonably close to the frequency in question
+		if( distance < 0.1)// && noteNum < 12)
 		{
 			noteMags[noteNum] += magnitude[i] / 4;
 		}
@@ -144,8 +150,8 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 
 	for (int i = 0; i < 32; i++)
 	{
-		WRITEOUT(noteMags[i%12]);
-		//WRITEOUT(magnitude[i]);
+		//WRITEOUT(noteMags[i%12]);
+		WRITEOUT(magnitude[i]);
 	}
 
 /*
