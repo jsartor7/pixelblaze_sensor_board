@@ -22,8 +22,8 @@ int16_t buffer[2][HIGH_N];
 //circular buffer for low frequency stuff - we need to reuse parts of it and can afford the memory
 //the 32 samples cover 1600 samples of the original audio
 struct {
-	int16_t circular[32];
-	int16_t output[32];
+	int16_t circular[LOW_N];
+	int16_t output[LOW_N];
 	int head;
 	//keep track of how many samples have passed through the filter to know when to sample from it
 	int downSampleCounter;
@@ -276,7 +276,7 @@ void DMA1_CH1_IRQHandler() {
 			bufferLowHz.downSampleCounter = 0;
 			bufferLowHz.circular[bufferLowHz.head++] = bufferLowHz.avg/50 - (audioAverage>>16);
 			bufferLowHz.avg = 0;
-			if (bufferLowHz.head >= 32)
+			if (bufferLowHz.head >= LOW_N)
 				bufferLowHz.head = 0;
 		}
 
@@ -292,7 +292,7 @@ void DMA1_CH1_IRQHandler() {
 		if (readPos >= HIGH_N) {
 			//copy the 400 hz buffer snapshot
 			for (int i = 0; i < LOW_N; i++) {
-				bufferLowHz.output[i] = bufferLowHz.circular[(bufferLowHz.head + i) & 31];
+				bufferLowHz.output[i] = bufferLowHz.circular[(bufferLowHz.head + i) & (LOW_N-1)];
 			}
 			//toggle sides and mark done
 			readSide = !readSide;

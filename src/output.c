@@ -8,6 +8,27 @@
 //so we can combine a downsampled 400hz using a smaller fft for low frequency stuff with the 20khz stuff
 
 //the first 6 buckets are dedicated to low frequency audio from 12.5-162.5 Hz
+
+const float numFreqs = 97;
+
+//first row is C, etc.
+//27.50 is lowest A on a piano, 4186 is highest C
+const float noteFrequencies[97] = {
+		16.35,	17.32,	18.35,	19.45,	20.60,	21.83,	23.12,	24.50,	25.96,	27.50,	29.14,	30.87,
+		32.70,	34.65,	36.71,	38.89,	41.20,	43.65,	46.25,	49,	51.91,	55,	58.27,	61.74,
+		65.41,	69.30,	73.42,	77.78,	82.41,	87.31,	92.50,	98,	103.83,	110,	116.54,	123.47,
+		130.81,	138.59,	146.83,	155.56,	164.81,	174.61,	185,	196,	207.65,	220,	233.08,	246.94,
+		261.63,	277.18,	293.66,	311.13,	329.63,	349.23,	369.99,	392,	415.30,	440,	466.16,	493.88,
+		523.25,	554.37,	587.33,	622.25,	659.25,	698.46,	739.99,	783.99,	830.61,	880,	932.33,	987.77,
+		1046.50, 1108.73, 1174.66, 1244.51, 1318.51, 1396.91, 1479.98, 1567.98, 1661.22, 1760, 1864.66, 1975.53,
+		2093.00, 2217.46, 2349.32, 2489.02, 2637.02, 2793.83, 2959.96, 3135.96, 3322.44, 3520, 3729.31, 3951.07,
+		4186.01
+};
+
+
+//this is a list of indices which refer to places within some other list somewhere else.
+//I think we should probably make the low frequency one bigger and the other one smaller.
+
 const uint8_t lowFrequencyMap[6] = {
 		3, 4, 6, 8, 10, 13
 };
@@ -15,7 +36,6 @@ const uint8_t lowFrequencyMap[6] = {
 const uint8_t highFrequencyMap[26] = {
 		5, 6, 8, 10, 12, 15, 18, 22, 25, 30, 35, 40, 46, 53, 61, 70, 80, 92, 105, 119, 136, 154, 175, 199, 225, 255,
 };
-
 
 char outBuffer[100];
 int outBufferLen;
@@ -44,7 +64,7 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 		//apply the hann windowing function, borrowing Sinewave LUT from fix_fft
 		//the positive portion of Sinewave ranges from index 0-512
 		// (i * 512) / n  == (i * 512) >> m
-		int si = (i * 512) >> m ;
+		int si = (i * HIGH_N) >> m ;
 		in[i] = (Sinewave[si] * in[i]) >> 16;
 	}
 	*energyAverage = energyTotal >> m;
@@ -70,6 +90,7 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 
 void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
 	uint16_t magnitude[HIGH_N]; //temp and output from the fft
+	uint16_t noteMags[12]; // these will be our main outputs. initializes to 0
 	uint16_t lowEnergy;
 	uint16_t energyAverage;
 	int maxFrequencyIndex = 0;
@@ -80,9 +101,54 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 	//start making output buffer
 	WRITEOUT("SB1.0");
 
+	for (int i = 0; i < 12; i++)
+	{
+		noteMags[i] = 0;
+	}
+
 	//do the low frequency stuff
 	fftRealWindowedMagnitude(audio400HzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
 	//write out low frequency stuff
+
+	for (int i = 0; i < LOW_N/2; i++)
+	{
+		float currFreq = (float) 400 * ((float) i / (float) LOW_N);
+		//find the index j where our fourier frequency is greater than a note frequency
+		int j = 0;
+		while(j < (int) numFreqs && noteFrequencies[j] < currFreq)
+		{
+			j++;
+			//noteMags[j%12] += j*1000;
+		}
+
+		uint8_t noteNum = 12;
+		//ensure we're not just above or below the whole range
+		if(j < (numFreqs-2) && currFreq > noteFrequencies[0])
+		{
+
+			//decide which one is closer
+			if((currFreq-noteFrequencies[j]) <= (noteFrequencies[j+1]-currFreq))
+			{
+				noteNum = j%12;
+			}
+			else
+			{
+				noteNum = (j+1)%12;
+			}
+		}
+		if(noteNum < 12)
+		{
+			noteMags[noteNum] += magnitude[i] / 4;
+		}
+	}
+
+	for (int i = 0; i < 32; i++)
+	{
+		WRITEOUT(noteMags[i%12]);
+		//WRITEOUT(magnitude[i]);
+	}
+
+/*
 	for (int i = 0, k = lowFrequencyMap[0]; i < 6; i++) {
 		int top = lowFrequencyMap[i] + 1;
 		uint16_t max = 0;
@@ -91,7 +157,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 		}
 		WRITEOUT(max);
 	}
-
+*/
 	//do high frequency stuff
 	fftRealWindowedMagnitude(audioBuffer, &magnitude[0], HIGH_NLOG2, &energyAverage);
 
@@ -102,7 +168,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 			maxFrequencyIndex = i;
 		}
 	}
-
+/*
 	//write out high frequency stuff
 	for (int i = 0, k = highFrequencyMap[0]; i < 26; i++) {
 		int top = highFrequencyMap[i] + 1;
@@ -112,10 +178,10 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 		}
 		WRITEOUT(max);
 	}
-
+*/
 	WRITEOUT(energyAverage);
 	WRITEOUT(maxFrequencyMagnitude);
-	maxFrequencyHz = (20000 * (int32_t)maxFrequencyIndex) / 512; //or 39.0625 per bin
+	maxFrequencyHz = (20000 * (int32_t)maxFrequencyIndex) / HIGH_N; //or 39.0625 per bin
 	WRITEOUT(maxFrequencyHz);
 
 	for (int i = 0; i < 3; i++) {

@@ -6,11 +6,11 @@
 #include "string.h"
 #include "stdlib.h"
 
-#define HIGH_N 512
-#define HIGH_NLOG2 9
+#define HIGH_N 256
+#define HIGH_NLOG2 8
 
-#define LOW_N 32
-#define LOW_NLOG2 5
+#define LOW_N 256
+#define LOW_NLOG2 8
 
 #define LIS3DH_ADDR (0x18<<1)
 
