@@ -89,7 +89,54 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 	}
 }
 
-void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
+void updateNoteMags(uint16_t * magnitude, float downsampleFreq, uint16_t numSteps, uint16_t * noteMags) {
+
+	for (int i = 0; i < numSteps/2; i++)
+	{
+		float stepSize = (float) downsampleFreq / (float) numSteps;
+		float currFreq = stepSize * (float) i;
+		//find the index j where our fourier frequency is greater than a note frequency
+		int j = 0;
+		while(j < (int) numFreqs && noteFrequencies[j] < currFreq)
+		{
+			j++;
+			//noteMags[j%12] += j*1000;
+		}
+
+		uint8_t noteNum = 12;
+		float distance = 100;
+		float reject_distance = 100;
+		//ensure we're not just above or below the whole range
+		if(j < (numFreqs-2) && currFreq > (noteFrequencies[0]-stepSize))
+		{
+			float distanceUp = (noteFrequencies[j]-currFreq);
+			float distanceDown = j > 0 ? (currFreq-noteFrequencies[j-1]) : 100;
+
+			//decide which one is closer
+			if(j == 0 || distanceUp < distanceDown)
+			{
+				distance = distanceUp;
+				reject_distance = distanceDown;
+				noteNum = j%12;
+			}
+			else
+			{
+				distance = distanceDown;
+				reject_distance = distanceUp;
+				noteNum = (j-1)%12;
+			}
+		}
+
+		//a note was assigned, and it is reasonably close to the frequency in question
+		if( distance < stepSize && distance < (reject_distance/2) && noteNum < 12)
+		{
+			noteMags[noteNum] += magnitude[i] / 4;
+		}
+	}
+
+}
+
+void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
 	uint16_t magnitude[HIGH_N]; //temp and output from the fft
 	uint16_t noteMags[12]; // these will be our main outputs. initializes to 0
 	uint16_t lowEnergy;
@@ -109,55 +156,23 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 
 	//do the low frequency stuff
 	fftRealWindowedMagnitude(audio400HzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
-	//write out low frequency stuff
 
-	for (int i = 0; i < LOW_N/2; i++)
-	{
-		float stepSize = (float) 400 / (float) LOW_N;
-		float currFreq = stepSize * (float) i;
-		//find the index j where our fourier frequency is greater than a note frequency
-		int j = 0;
-		while(j < (int) numFreqs && noteFrequencies[j] < currFreq)
-		{
-			j++;
-			//noteMags[j%12] += j*1000;
-		}
+	//updateNoteMags(&magnitude[0], 400, LOW_N, &noteMags[0]);
 
-		uint8_t noteNum = 12;
-		float distance = 100;
-		//ensure we're not just above or below the whole range
-		if(j < (numFreqs-2) && currFreq > (noteFrequencies[0]-stepSize))
-		{
-			float distanceUp = (noteFrequencies[j]-currFreq);
-			float distanceDown = j > 0 ? (currFreq-noteFrequencies[j-1]) : 100;
+	//fftRealWindowedMagnitude(audioMidHzBuffer, &magnitude[0], MID_NLOG2, &lowEnergy);
 
-			//decide which one is closer
-			if(j == 0 || distanceUp < distanceDown)
-			{
-				distance = distanceUp;
-				noteNum = j%12;
-			}
-			else
-			{
-				distance = distanceDown;
-				noteNum = (j-1)%12;
-			}
-		}
+	//updateNoteMags(&magnitude[0], 4000, MID_N, &noteMags[0]);
 
-		//a note was assigned, and it is reasonably close to the frequency in question
-		if( distance < stepSize && noteNum < 12)
-		{
-			noteMags[noteNum] += magnitude[i] / 4;
-		}
-	}
+	//fftRealWindowedMagnitude(audio400HzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
+
 
 	for (int i = 0; i < 32; i++)
 	{
-		WRITEOUT(noteMags[i%12]);
+		//WRITEOUT(noteMags[i%12]);
 		//WRITEOUT(magnitude[i]);
 	}
 
-/*
+
 	for (int i = 0, k = lowFrequencyMap[0]; i < 6; i++) {
 		int top = lowFrequencyMap[i] + 1;
 		uint16_t max = 0;
@@ -166,7 +181,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 		}
 		WRITEOUT(max);
 	}
-*/
+
 	//do high frequency stuff
 	fftRealWindowedMagnitude(audioBuffer, &magnitude[0], HIGH_NLOG2, &energyAverage);
 
@@ -177,7 +192,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 			maxFrequencyIndex = i;
 		}
 	}
-/*
+
 	//write out high frequency stuff
 	for (int i = 0, k = highFrequencyMap[0]; i < 26; i++) {
 		int top = highFrequencyMap[i] + 1;
@@ -187,7 +202,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, volati
 		}
 		WRITEOUT(max);
 	}
-*/
+
 	WRITEOUT(energyAverage);
 	WRITEOUT(maxFrequencyMagnitude);
 	maxFrequencyHz = (20000 * (int32_t)maxFrequencyIndex) / HIGH_N; //or 39.0625 per bin

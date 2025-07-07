@@ -30,6 +30,17 @@ struct {
 	int32_t avg;
 } bufferLowHz;
 
+//circular buffer for low frequency stuff - we need to reuse parts of it and can afford the memory
+//the 32 samples cover 1600 samples of the original audio
+struct {
+	int16_t circular[MID_N];
+	int16_t output[MID_N];
+	int head;
+	//keep track of how many samples have passed through the filter to know when to sample from it
+	int downSampleCounter;
+	int32_t avg;
+} bufferMidHz;
+
 int main(void) {
 	SysTick_Config(SystemCoreClock/1000); //tick interval 1ms
 	initRcc();
@@ -55,7 +66,7 @@ int main(void) {
 			startAccelerometerPoll();
 
 			//grab the side we're not currently writing to and do an FFT on it
-			processSensorData(&buffer[!readSide][0], &bufferLowHz.output[0], adcBuffer, accelerometer);
+			processSensorData(&buffer[!readSide][0], &bufferLowHz.output[0], &bufferMidHz.output[0], adcBuffer, accelerometer);
 
 //			GPIO_WriteBit(GPIOB, GPIO_Pin_1, 0);
 		}
@@ -280,6 +291,16 @@ void DMA1_CH1_IRQHandler() {
 				bufferLowHz.head = 0;
 		}
 
+		//downsample 5:1 for the mid frequency buffer
+		bufferMidHz.avg += audioSample;
+		if (++bufferMidHz.downSampleCounter >= 5) {
+			bufferMidHz.downSampleCounter = 0;
+			bufferMidHz.circular[bufferMidHz.head++] = bufferMidHz.avg/5 - (audioAverage>>16);
+			bufferMidHz.avg = 0;
+			if (bufferMidHz.head >= MID_N)
+				bufferMidHz.head = 0;
+		}
+
 		volatile int32_t d = (audioSample<<16) - audioAverage;
 		audioAverage += (d) >> 16;
 		audioSample -= audioAverage>>16;
@@ -294,6 +315,10 @@ void DMA1_CH1_IRQHandler() {
 			for (int i = 0; i < LOW_N; i++) {
 				bufferLowHz.output[i] = bufferLowHz.circular[(bufferLowHz.head + i) & (LOW_N-1)];
 			}
+			for (int i = 0; i < MID_N; i++) {
+				bufferMidHz.output[i] = bufferMidHz.circular[(bufferMidHz.head + i) & (MID_N-1)];
+			}
+
 			//toggle sides and mark done
 			readSide = !readSide;
 			readPos = 0;
