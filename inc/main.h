@@ -9,8 +9,8 @@
 #define HIGH_N 512
 #define HIGH_NLOG2 9
 
-#define LOW_N 32
-#define LOW_NLOG2 5
+#define LOW_N 128
+#define LOW_NLOG2 7
 
 #define LIS3DH_ADDR (0x18<<1)
 
