@@ -157,7 +157,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_
 	//do the low frequency stuff
 	fftRealWindowedMagnitude(audio400HzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
 
-	//updateNoteMags(&magnitude[0], 400, LOW_N, &noteMags[0]);
+	updateNoteMags(&magnitude[0], 400, LOW_N, &noteMags[0]);
 
 	//fftRealWindowedMagnitude(audioMidHzBuffer, &magnitude[0], MID_NLOG2, &lowEnergy);
 
@@ -168,11 +168,11 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_
 
 	for (int i = 0; i < 32; i++)
 	{
-		//WRITEOUT(noteMags[i%12]);
+		WRITEOUT(noteMags[i%12]);
 		//WRITEOUT(magnitude[i]);
 	}
 
-
+/*
 	for (int i = 0, k = lowFrequencyMap[0]; i < 6; i++) {
 		int top = lowFrequencyMap[i] + 1;
 		uint16_t max = 0;
@@ -181,7 +181,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_
 		}
 		WRITEOUT(max);
 	}
-
+*/
 	//do high frequency stuff
 	fftRealWindowedMagnitude(audioBuffer, &magnitude[0], HIGH_NLOG2, &energyAverage);
 
@@ -192,7 +192,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_
 			maxFrequencyIndex = i;
 		}
 	}
-
+/*
 	//write out high frequency stuff
 	for (int i = 0, k = highFrequencyMap[0]; i < 26; i++) {
 		int top = highFrequencyMap[i] + 1;
@@ -202,6 +202,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_
 		}
 		WRITEOUT(max);
 	}
+	*/
 
 	WRITEOUT(energyAverage);
 	WRITEOUT(maxFrequencyMagnitude);

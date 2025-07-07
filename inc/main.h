@@ -6,11 +6,11 @@
 #include "string.h"
 #include "stdlib.h"
 
-#define HIGH_N 512
-#define HIGH_NLOG2 9
+#define HIGH_N 256
+#define HIGH_NLOG2 8
 
-#define MID_N 64
-#define MID_NLOG2 6
+#define MID_N 128
+#define MID_NLOG2 7
 
 #define LOW_N 128
 #define LOW_NLOG2 7
