@@ -10,9 +10,11 @@
 #define HIGH_NLOG2 8
 
 #define MID_N 128
+#define MID_N_DOWNSAMPLE 50
 #define MID_NLOG2 7
 
 #define LOW_N 128
+#define LOW_N_DOWNSAMPLE 50
 #define LOW_NLOG2 7
 
 #define LIS3DH_ADDR (0x18<<1)
@@ -36,7 +38,7 @@ void i2cReadReg(uint8_t addr, uint8_t reg, uint8_t * value, uint8_t len);
 void initAccelerometer();
 void startAccelerometerPoll();
 
-void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]);
+void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]);
 
 
 #endif

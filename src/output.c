@@ -91,7 +91,7 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 
 void updateNoteMags(uint16_t * magnitude, float downsampleFreq, uint16_t numSteps, uint16_t * noteMags) {
 
-	for (int i = 0; i < numSteps/2; i++)
+	for (int i = 1; i < numSteps/2; i++)
 	{
 		float stepSize = (float) downsampleFreq / (float) numSteps;
 		float currFreq = stepSize * (float) i;
@@ -102,18 +102,23 @@ void updateNoteMags(uint16_t * magnitude, float downsampleFreq, uint16_t numStep
 			j++;
 			//noteMags[j%12] += j*1000;
 		}
+		//after this loop, j is the first freq index that is greater than currFreq
 
 		uint8_t noteNum = 12;
 		float distance = 100;
 		float reject_distance = 100;
 		//ensure we're not just above or below the whole range
-		if(j < (numFreqs-2) && currFreq > (noteFrequencies[0]-stepSize))
+		if(j >0 && j < (numFreqs-2) && currFreq > (noteFrequencies[0]-stepSize))
 		{
 			float distanceUp = (noteFrequencies[j]-currFreq);
-			float distanceDown = j > 0 ? (currFreq-noteFrequencies[j-1]) : 100;
+			float distanceDown = (currFreq-noteFrequencies[j-1]);
 
 			//decide which one is closer
-			if(j == 0 || distanceUp < distanceDown)
+			if(distanceUp < 0 || distanceDown < 0)
+			{
+				noteNum = 12;
+			}
+			else if(distanceUp < distanceDown)
 			{
 				distance = distanceUp;
 				reject_distance = distanceDown;
@@ -128,15 +133,20 @@ void updateNoteMags(uint16_t * magnitude, float downsampleFreq, uint16_t numStep
 		}
 
 		//a note was assigned, and it is reasonably close to the frequency in question
-		if( distance < stepSize && distance < (reject_distance/2) && noteNum < 12)
-		{
-			noteMags[noteNum] += magnitude[i] / 4;
+		if( distance < stepSize/2 && distance < reject_distance/2){
+			float factor = 1;
+			if (currFreq > 400)
+			{
+				factor = 0.1;
+			}
+
+			noteMags[noteNum] += magnitude[i]  / 2;
 		}
 	}
 
 }
 
-void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
+void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
 	uint16_t magnitude[HIGH_N]; //temp and output from the fft
 	uint16_t noteMags[12]; // these will be our main outputs. initializes to 0
 	uint16_t lowEnergy;
@@ -155,15 +165,13 @@ void processSensorData(int16_t * audioBuffer, int16_t * audio400HzBuffer, int16_
 	}
 
 	//do the low frequency stuff
-	fftRealWindowedMagnitude(audio400HzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
+	//fftRealWindowedMagnitude(audioLowHzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
 
-	updateNoteMags(&magnitude[0], 400, LOW_N, &noteMags[0]);
+	//updateNoteMags(&magnitude[0], 40000 / LOW_N_DOWNSAMPLE, LOW_N, &noteMags[0]);
 
-	//fftRealWindowedMagnitude(audioMidHzBuffer, &magnitude[0], MID_NLOG2, &lowEnergy);
+	fftRealWindowedMagnitude(audioMidHzBuffer, &magnitude[0], MID_NLOG2, &lowEnergy);
 
-	//updateNoteMags(&magnitude[0], 4000, MID_N, &noteMags[0]);
-
-	//fftRealWindowedMagnitude(audio400HzBuffer, &magnitude[0], LOW_NLOG2, &lowEnergy);
+	updateNoteMags(&magnitude[0], 40000 / MID_N_DOWNSAMPLE, MID_N, &noteMags[0]);
 
 
 	for (int i = 0; i < 32; i++)

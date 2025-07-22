@@ -283,9 +283,9 @@ void DMA1_CH1_IRQHandler() {
 
 		//downsample 50:1 for the low frequency buffer
 		bufferLowHz.avg += audioSample;
-		if (++bufferLowHz.downSampleCounter >= 50) {
+		if (++bufferLowHz.downSampleCounter >= LOW_N_DOWNSAMPLE) {
 			bufferLowHz.downSampleCounter = 0;
-			bufferLowHz.circular[bufferLowHz.head++] = bufferLowHz.avg/50 - (audioAverage>>16);
+			bufferLowHz.circular[bufferLowHz.head++] = bufferLowHz.avg/LOW_N_DOWNSAMPLE - (audioAverage>>16);
 			bufferLowHz.avg = 0;
 			if (bufferLowHz.head >= LOW_N)
 				bufferLowHz.head = 0;
@@ -293,9 +293,9 @@ void DMA1_CH1_IRQHandler() {
 
 		//downsample 5:1 for the mid frequency buffer
 		bufferMidHz.avg += audioSample;
-		if (++bufferMidHz.downSampleCounter >= 5) {
+		if (++bufferMidHz.downSampleCounter >= MID_N_DOWNSAMPLE) {
 			bufferMidHz.downSampleCounter = 0;
-			bufferMidHz.circular[bufferMidHz.head++] = bufferMidHz.avg/5 - (audioAverage>>16);
+			bufferMidHz.circular[bufferMidHz.head++] = bufferMidHz.avg/MID_N_DOWNSAMPLE - (audioAverage>>16);
 			bufferMidHz.avg = 0;
 			if (bufferMidHz.head >= MID_N)
 				bufferMidHz.head = 0;
