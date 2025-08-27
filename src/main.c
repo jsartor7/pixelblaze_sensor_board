@@ -21,6 +21,8 @@ int16_t buffer[2][HIGH_N];
 
 //circular buffer for low frequency stuff - we need to reuse parts of it and can afford the memory
 //the 32 samples cover 1600 samples of the original audio
+
+/*
 struct {
 	int16_t circular[LOW_N];
 	int16_t output[LOW_N];
@@ -29,6 +31,8 @@ struct {
 	int downSampleCounter;
 	int32_t avg;
 } bufferLowHz;
+ *
+ */
 
 //circular buffer for low frequency stuff - we need to reuse parts of it and can afford the memory
 //the 32 samples cover 1600 samples of the original audio
@@ -66,7 +70,8 @@ int main(void) {
 			startAccelerometerPoll();
 
 			//grab the side we're not currently writing to and do an FFT on it
-			processSensorData(&buffer[!readSide][0], &bufferLowHz.output[0], &bufferMidHz.output[0], adcBuffer, accelerometer);
+			//processSensorData(&buffer[!readSide][0], &bufferLowHz.output[0], &bufferMidHz.output[0], adcBuffer, accelerometer);
+			processSensorData(&buffer[!readSide][0], &bufferMidHz.output[0], adcBuffer, accelerometer);
 
 //			GPIO_WriteBit(GPIOB, GPIO_Pin_1, 0);
 		}
@@ -280,7 +285,7 @@ void DMA1_CH1_IRQHandler() {
 		//the dma transfer is complete
 		int16_t audioSample = adcBuffer[0]<<3;
 
-
+		/*
 		//downsample 50:1 for the low frequency buffer
 		bufferLowHz.avg += audioSample;
 		if (++bufferLowHz.downSampleCounter >= LOW_N_DOWNSAMPLE) {
@@ -290,6 +295,7 @@ void DMA1_CH1_IRQHandler() {
 			if (bufferLowHz.head >= LOW_N)
 				bufferLowHz.head = 0;
 		}
+		*/
 
 		//downsample 5:1 for the mid frequency buffer
 		bufferMidHz.avg += audioSample;
@@ -312,9 +318,13 @@ void DMA1_CH1_IRQHandler() {
 		readPos++;
 		if (readPos >= HIGH_N) {
 			//copy the 400 hz buffer snapshot
-			for (int i = 0; i < LOW_N; i++) {
+
+			/*
+				for (int i = 0; i < LOW_N; i++) {
 				bufferLowHz.output[i] = bufferLowHz.circular[(bufferLowHz.head + i) & (LOW_N-1)];
 			}
+			 *
+			 */
 			for (int i = 0; i < MID_N; i++) {
 				bufferMidHz.output[i] = bufferMidHz.circular[(bufferMidHz.head + i) & (MID_N-1)];
 			}

@@ -22,6 +22,7 @@
 
 const int32_t numFreqs = 88;
 
+//these are all of the notes on a piano, the first in each line (except for the first) is an C
 const int32_t noteFrequencies[88] = {
 	FIX16_FROM_FLOAT(27.50), FIX16_FROM_FLOAT(29.14), FIX16_FROM_FLOAT(30.87),
 	FIX16_FROM_FLOAT(32.70), FIX16_FROM_FLOAT(34.65), FIX16_FROM_FLOAT(36.71), FIX16_FROM_FLOAT(38.89), FIX16_FROM_FLOAT(41.20), FIX16_FROM_FLOAT(43.65), FIX16_FROM_FLOAT(46.25), FIX16_FROM_FLOAT(49), FIX16_FROM_FLOAT(51.91), FIX16_FROM_FLOAT(55), FIX16_FROM_FLOAT(58.27), FIX16_FROM_FLOAT(61.74),
@@ -34,6 +35,7 @@ const int32_t noteFrequencies[88] = {
 	FIX16_FROM_FLOAT(4186.01)
 };
 
+//this function takes a value at a frequency and converts it to a note and then adds it to our note values
 void updateNoteMags(uint16_t * magnitude, int downsampleFreq, uint16_t numSteps, uint16_t * noteMags) {
 
 	for (int i = 1; i < numSteps/2; i++)
@@ -80,13 +82,23 @@ void updateNoteMags(uint16_t * magnitude, int downsampleFreq, uint16_t numSteps,
 
 		//a note was assigned, and it is reasonably close to the frequency in question
 		if( distance < stepSize/2 && distance < reject_distance/2){
-			//int32_t factor = FIX16_ONE;
-			//if (currFreq > FIX16_FROM_INT(400))
-			//{
-			//	factor = FIX16_FROM_FLOAT(0.1);
-			//}
 
-			noteMags[noteNum] += magnitude[i]  / 1 	;
+			if (currFreq > FIX16_FROM_INT(1600))
+			{
+				noteMags[noteNum] += magnitude[i] << 3;
+			}
+			else if (currFreq > FIX16_FROM_INT(800))
+			{
+				noteMags[noteNum] += magnitude[i] << 2;
+			}
+			else if (currFreq > FIX16_FROM_INT(400))
+			{
+				noteMags[noteNum] += magnitude[i] << 1;
+			}
+			else
+			{
+				noteMags[noteNum] += magnitude[i];
+			}
 		}
 	}
 
@@ -158,7 +170,8 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 }
 
 
-void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
+//void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
+void processSensorData(int16_t * audioBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
 	uint16_t magnitude[HIGH_N]; //temp and output from the fft
 	uint16_t noteMags[12]; // these will be our main outputs. initializes to 0
 	uint16_t lowEnergy;
