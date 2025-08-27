@@ -9,13 +9,13 @@
 #define HIGH_N 256
 #define HIGH_NLOG2 8
 
-#define MID_N 128
-#define MID_N_DOWNSAMPLE 50
-#define MID_NLOG2 7
+#define MID_N 256
+#define MID_N_DOWNSAMPLE 10
+#define MID_NLOG2 8
 
-#define LOW_N 128
+#define LOW_N 64
 #define LOW_N_DOWNSAMPLE 50
-#define LOW_NLOG2 7
+#define LOW_NLOG2 6
 
 #define LIS3DH_ADDR (0x18<<1)
 

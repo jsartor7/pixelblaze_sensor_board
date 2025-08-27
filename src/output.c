@@ -9,22 +9,90 @@
 
 //the first 6 buckets are dedicated to low frequency audio from 12.5-162.5 Hz
 
-const float numFreqs = 88;
 
-//first row is C, etc.
-//27.50 is lowest A on a piano, 4186 is highest C
-const float noteFrequencies[88] = {
-		//16.35,	17.32,	18.35,	19.45,	20.60,	21.83,	23.12,	24.50,	25.96,
-		27.50,	29.14,	30.87,
-		32.70,	34.65,	36.71,	38.89,	41.20,	43.65,	46.25,	49,	51.91,	55,	58.27,	61.74,
-		65.41,	69.30,	73.42,	77.78,	82.41,	87.31,	92.50,	98,	103.83,	110,	116.54,	123.47,
-		130.81,	138.59,	146.83,	155.56,	164.81,	174.61,	185,	196,	207.65,	220,	233.08,	246.94,
-		261.63,	277.18,	293.66,	311.13,	329.63,	349.23,	369.99,	392,	415.30,	440,	466.16,	493.88,
-		523.25,	554.37,	587.33,	622.25,	659.25,	698.46,	739.99,	783.99,	830.61,	880,	932.33,	987.77,
-		1046.50, 1108.73, 1174.66, 1244.51, 1318.51, 1396.91, 1479.98, 1567.98, 1661.22, 1760, 1864.66, 1975.53,
-		2093.00, 2217.46, 2349.32, 2489.02, 2637.02, 2793.83, 2959.96, 3135.96, 3322.44, 3520, 3729.31, 3951.07,
-		4186.01
+
+
+// 16.16 fixed-point arithmetic macros
+#define FIX16_ONE (1 << 16)
+#define FIX16_FROM_INT(x) ((x) << 16)
+#define FIX16_TO_INT(x) ((x) >> 16)
+#define FIX16_MUL(x, y) (((int64_t)(x) * (y)) >> 16)
+#define FIX16_DIV(x, y) (((int64_t)(x) << 16) / (y))
+#define FIX16_FROM_FLOAT(x) ((int32_t)((x) * 65536.0f))
+
+const int32_t numFreqs = 88;
+
+const int32_t noteFrequencies[88] = {
+	FIX16_FROM_FLOAT(27.50), FIX16_FROM_FLOAT(29.14), FIX16_FROM_FLOAT(30.87),
+	FIX16_FROM_FLOAT(32.70), FIX16_FROM_FLOAT(34.65), FIX16_FROM_FLOAT(36.71), FIX16_FROM_FLOAT(38.89), FIX16_FROM_FLOAT(41.20), FIX16_FROM_FLOAT(43.65), FIX16_FROM_FLOAT(46.25), FIX16_FROM_FLOAT(49), FIX16_FROM_FLOAT(51.91), FIX16_FROM_FLOAT(55), FIX16_FROM_FLOAT(58.27), FIX16_FROM_FLOAT(61.74),
+	FIX16_FROM_FLOAT(65.41), FIX16_FROM_FLOAT(69.30), FIX16_FROM_FLOAT(73.42), FIX16_FROM_FLOAT(77.78), FIX16_FROM_FLOAT(82.41), FIX16_FROM_FLOAT(87.31), FIX16_FROM_FLOAT(92.50), FIX16_FROM_FLOAT(98), FIX16_FROM_FLOAT(103.83), FIX16_FROM_FLOAT(110), FIX16_FROM_FLOAT(116.54), FIX16_FROM_FLOAT(123.47),
+	FIX16_FROM_FLOAT(130.81), FIX16_FROM_FLOAT(138.59), FIX16_FROM_FLOAT(146.83), FIX16_FROM_FLOAT(155.56), FIX16_FROM_FLOAT(164.81), FIX16_FROM_FLOAT(174.61), FIX16_FROM_FLOAT(185), FIX16_FROM_FLOAT(196), FIX16_FROM_FLOAT(207.65), FIX16_FROM_FLOAT(220), FIX16_FROM_FLOAT(233.08), FIX16_FROM_FLOAT(246.94),
+	FIX16_FROM_FLOAT(261.63), FIX16_FROM_FLOAT(277.18), FIX16_FROM_FLOAT(293.66), FIX16_FROM_FLOAT(311.13), FIX16_FROM_FLOAT(329.63), FIX16_FROM_FLOAT(349.23), FIX16_FROM_FLOAT(369.99), FIX16_FROM_FLOAT(392), FIX16_FROM_FLOAT(415.30), FIX16_FROM_FLOAT(440), FIX16_FROM_FLOAT(466.16), FIX16_FROM_FLOAT(493.88),
+	FIX16_FROM_FLOAT(523.25), FIX16_FROM_FLOAT(554.37), FIX16_FROM_FLOAT(587.33), FIX16_FROM_FLOAT(622.25), FIX16_FROM_FLOAT(659.25), FIX16_FROM_FLOAT(698.46), FIX16_FROM_FLOAT(739.99), FIX16_FROM_FLOAT(783.99), FIX16_FROM_FLOAT(830.61), FIX16_FROM_FLOAT(880), FIX16_FROM_FLOAT(932.33), FIX16_FROM_FLOAT(987.77),
+	FIX16_FROM_FLOAT(1046.50), FIX16_FROM_FLOAT(1108.73), FIX16_FROM_FLOAT(1174.66), FIX16_FROM_FLOAT(1244.51), FIX16_FROM_FLOAT(1318.51), FIX16_FROM_FLOAT(1396.91), FIX16_FROM_FLOAT(1479.98), FIX16_FROM_FLOAT(1567.98), FIX16_FROM_FLOAT(1661.22), FIX16_FROM_FLOAT(1760), FIX16_FROM_FLOAT(1864.66), FIX16_FROM_FLOAT(1975.53),
+	FIX16_FROM_FLOAT(2093.00), FIX16_FROM_FLOAT(2217.46), FIX16_FROM_FLOAT(2349.32), FIX16_FROM_FLOAT(2489.02), FIX16_FROM_FLOAT(2637.02), FIX16_FROM_FLOAT(2793.83), FIX16_FROM_FLOAT(2959.96), FIX16_FROM_FLOAT(3135.96), FIX16_FROM_FLOAT(3322.44), FIX16_FROM_FLOAT(3520), FIX16_FROM_FLOAT(3729.31), FIX16_FROM_FLOAT(3951.07),
+	FIX16_FROM_FLOAT(4186.01)
 };
+
+void updateNoteMags(uint16_t * magnitude, int downsampleFreq, uint16_t numSteps, uint16_t * noteMags) {
+
+	for (int i = 1; i < numSteps/2; i++)
+	{
+		int32_t stepSize = FIX16_DIV(FIX16_FROM_INT(downsampleFreq), FIX16_FROM_INT(numSteps));
+		int32_t currFreq = FIX16_MUL(stepSize, FIX16_FROM_INT(i));
+
+		//find the index j where our fourier frequency is greater than a note frequency
+		int j = 0;
+		while(j < (int) numFreqs && noteFrequencies[j] < currFreq)
+		{
+			j++;
+			//noteMags[j%12] += j*1000;
+		}
+		//after this loop, j is the first freq index that is greater than currFreq
+
+		uint8_t noteNum = 12;
+		int32_t distance = FIX16_FROM_INT(100);
+		int32_t reject_distance = FIX16_FROM_INT(100);
+		//ensure we're not just above or below the whole range
+		if(j > 0 && j < (numFreqs-2) && currFreq > (noteFrequencies[0] - stepSize))
+		{
+			int32_t distanceUp = (noteFrequencies[j] - currFreq);
+			int32_t distanceDown = (currFreq - noteFrequencies[j-1]);
+
+			//decide which one is closer
+			if(distanceUp < 0 || distanceDown < 0)
+			{
+				noteNum = 12;
+			}
+			else if(distanceUp < distanceDown)
+			{
+				distance = distanceUp;
+				reject_distance = distanceDown;
+				noteNum = j%12;
+			}
+			else
+			{
+				distance = distanceDown;
+				reject_distance = distanceUp;
+				noteNum = (j-1)%12;
+			}
+		}
+
+		//a note was assigned, and it is reasonably close to the frequency in question
+		if( distance < stepSize/2 && distance < reject_distance/2){
+			//int32_t factor = FIX16_ONE;
+			//if (currFreq > FIX16_FROM_INT(400))
+			//{
+			//	factor = FIX16_FROM_FLOAT(0.1);
+			//}
+
+			noteMags[noteNum] += magnitude[i]  / 1 	;
+		}
+	}
+
+}
+
+
 
 
 //this is a list of indices which refer to places within some other list somewhere else.
@@ -89,62 +157,6 @@ void fftRealWindowedMagnitude(int16_t * in, uint16_t * out, int m, uint16_t * en
 	}
 }
 
-void updateNoteMags(uint16_t * magnitude, float downsampleFreq, uint16_t numSteps, uint16_t * noteMags) {
-
-	for (int i = 1; i < numSteps/2; i++)
-	{
-		float stepSize = (float) downsampleFreq / (float) numSteps;
-		float currFreq = stepSize * (float) i;
-		//find the index j where our fourier frequency is greater than a note frequency
-		int j = 0;
-		while(j < (int) numFreqs && noteFrequencies[j] < currFreq)
-		{
-			j++;
-			//noteMags[j%12] += j*1000;
-		}
-		//after this loop, j is the first freq index that is greater than currFreq
-
-		uint8_t noteNum = 12;
-		float distance = 100;
-		float reject_distance = 100;
-		//ensure we're not just above or below the whole range
-		if(j >0 && j < (numFreqs-2) && currFreq > (noteFrequencies[0]-stepSize))
-		{
-			float distanceUp = (noteFrequencies[j]-currFreq);
-			float distanceDown = (currFreq-noteFrequencies[j-1]);
-
-			//decide which one is closer
-			if(distanceUp < 0 || distanceDown < 0)
-			{
-				noteNum = 12;
-			}
-			else if(distanceUp < distanceDown)
-			{
-				distance = distanceUp;
-				reject_distance = distanceDown;
-				noteNum = j%12;
-			}
-			else
-			{
-				distance = distanceDown;
-				reject_distance = distanceUp;
-				noteNum = (j-1)%12;
-			}
-		}
-
-		//a note was assigned, and it is reasonably close to the frequency in question
-		if( distance < stepSize/2 && distance < reject_distance/2){
-			float factor = 1;
-			if (currFreq > 400)
-			{
-				factor = 0.1;
-			}
-
-			noteMags[noteNum] += magnitude[i]  / 2;
-		}
-	}
-
-}
 
 void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_t * audioMidHzBuffer, volatile uint16_t adcBuffer[7], volatile int16_t accelerometer[3]) {
 	uint16_t magnitude[HIGH_N]; //temp and output from the fft
@@ -169,6 +181,8 @@ void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_
 
 	//updateNoteMags(&magnitude[0], 40000 / LOW_N_DOWNSAMPLE, LOW_N, &noteMags[0]);
 
+
+	//if()
 	fftRealWindowedMagnitude(audioMidHzBuffer, &magnitude[0], MID_NLOG2, &lowEnergy);
 
 	updateNoteMags(&magnitude[0], 40000 / MID_N_DOWNSAMPLE, MID_N, &noteMags[0]);
@@ -176,7 +190,15 @@ void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_
 
 	for (int i = 0; i < 32; i++)
 	{
+		if(i < 12)
+		{
 		WRITEOUT(noteMags[i%12]);
+		}
+		else
+		{
+			WRITEOUT(noteMags[0]);
+			//WRITEOUT(magnitude[(i-12)*MID_N])
+		}
 		//WRITEOUT(magnitude[i]);
 	}
 
@@ -191,7 +213,7 @@ void processSensorData(int16_t * audioBuffer, int16_t * audioLowHzBuffer, int16_
 	}
 */
 	//do high frequency stuff
-	fftRealWindowedMagnitude(audioBuffer, &magnitude[0], HIGH_NLOG2, &energyAverage);
+	//fftRealWindowedMagnitude(audioBuffer, &magnitude[0], HIGH_NLOG2, &energyAverage);
 
 	//run through and get maxFrequency info
 	for (int i = 1; i < HIGH_N/2; i++) {
