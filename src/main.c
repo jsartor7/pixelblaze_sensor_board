@@ -16,6 +16,7 @@ volatile uint32_t ms = 0; //updated by SysTick
 //ping-pong buffer for main 20KHz audio
 volatile bool readDone;
 int readSide;
+int secondFlag;
 int readPos;
 int16_t buffer[2][HIGH_N];
 
@@ -31,8 +32,7 @@ struct {
 	int downSampleCounter;
 	int32_t avg;
 } bufferLowHz;
- *
- */
+*/
 
 //circular buffer for low frequency stuff - we need to reuse parts of it and can afford the memory
 //the 32 samples cover 1600 samples of the original audio
@@ -285,8 +285,9 @@ void DMA1_CH1_IRQHandler() {
 		//the dma transfer is complete
 		int16_t audioSample = adcBuffer[0]<<3;
 
-		/*
+
 		//downsample 50:1 for the low frequency buffer
+		/*
 		bufferLowHz.avg += audioSample;
 		if (++bufferLowHz.downSampleCounter >= LOW_N_DOWNSAMPLE) {
 			bufferLowHz.downSampleCounter = 0;
@@ -307,24 +308,39 @@ void DMA1_CH1_IRQHandler() {
 				bufferMidHz.head = 0;
 		}
 
+		// this seems to be some kind of noise reduction step
+		// or just keeping things zeroed
 		volatile int32_t d = (audioSample<<16) - audioAverage;
 		audioAverage += (d) >> 16;
 		audioSample -= audioAverage>>16;
 
 
 		//save to the ping-pong buffer
-		buffer[readSide][readPos] = audioSample;
+		if(secondFlag == 0)
+		{
+			secondFlag = 1;
+			buffer[readSide][readPos] = audioSample;
+			readPos++;
+		}
+		else
+		{
+			//buffer[readSide][readPos] += audioSample >> 1;
 
-		readPos++;
+			//this is intended to decrease the sample rate by 50%
+
+			secondFlag = (secondFlag+1)%4;
+		}
+
+
 		if (readPos >= HIGH_N) {
 			//copy the 400 hz buffer snapshot
 
 			/*
-				for (int i = 0; i < LOW_N; i++) {
+			for (int i = 0; i < LOW_N; i++) {
 				bufferLowHz.output[i] = bufferLowHz.circular[(bufferLowHz.head + i) & (LOW_N-1)];
 			}
-			 *
-			 */
+			*/
+
 			for (int i = 0; i < MID_N; i++) {
 				bufferMidHz.output[i] = bufferMidHz.circular[(bufferMidHz.head + i) & (MID_N-1)];
 			}
