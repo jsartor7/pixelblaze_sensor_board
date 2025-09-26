@@ -84,7 +84,7 @@ void updateNoteMags(uint16_t * magnitude, int downsampleFreq, int minFreq, int m
 			}
 
 			//a note was assigned, and it is reasonably close to the frequency in question
-			if( distance < FIX16_DIV(stepSize,2) && distance < FIX16_DIV(reject_distance, 2)){
+			if( distance < FIX16_DIV(stepSize,3) && distance < FIX16_DIV(reject_distance, 3)){
 
 				//if(true ){
 
@@ -94,6 +94,10 @@ void updateNoteMags(uint16_t * magnitude, int downsampleFreq, int minFreq, int m
 					noteMags[noteNum] += 0;
 				}
 				else if (currFreq > FIX16_FROM_INT(1000))
+				{
+					noteMags[noteNum] += (magnitude[i] >> 2) << (scaleShift+2) ;
+				}
+				else if (currFreq > FIX16_FROM_INT(400))
 				{
 					noteMags[noteNum] += (magnitude[i] >> 2) << (scaleShift+1) ;
 				}
@@ -203,13 +207,13 @@ void processSensorData(int16_t * audioBuffer, int16_t * audioMidHzBuffer, volati
 
 	//high frequency FFT
 	fftRealWindowedMagnitude(audioBuffer, &magnitude[0], HIGH_NLOG2, &energyAverage);
-	updateNoteMags(&magnitude[0], 20000/4, 75, 5000, 0, HIGH_N, &noteMags[0]);
+	updateNoteMags(&magnitude[0], 20000/4, 250, 4000, 0, HIGH_N, &noteMags[0]);
 
 	//mid frequency FFT
 
 	fftRealWindowedMagnitude(audioMidHzBuffer, &magnitude[0], MID_NLOG2, &lowEnergy);
 
-	updateNoteMags(&magnitude[0], 20000 / MID_N_DOWNSAMPLE, 31, 300, 1, MID_N, &noteMags[0]);
+	updateNoteMags(&magnitude[0], 20000 / MID_N_DOWNSAMPLE, 31, 250, 2, MID_N, &noteMags[0]);
 
 
 	for (int i = 0; i < 32; i++)

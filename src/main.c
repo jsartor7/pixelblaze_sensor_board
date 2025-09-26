@@ -298,6 +298,7 @@ void DMA1_CH1_IRQHandler() {
 		}
 		*/
 
+
 		//downsample 5:1 for the mid frequency buffer
 		bufferMidHz.avg += audioSample;
 		if (++bufferMidHz.downSampleCounter >= MID_N_DOWNSAMPLE) {
@@ -307,6 +308,7 @@ void DMA1_CH1_IRQHandler() {
 			if (bufferMidHz.head >= MID_N)
 				bufferMidHz.head = 0;
 		}
+
 
 		// this seems to be some kind of noise reduction step
 		// or just keeping things zeroed
@@ -321,6 +323,7 @@ void DMA1_CH1_IRQHandler() {
 			secondFlag = 1;
 			buffer[readSide][readPos] = audioSample;
 			readPos++;
+
 		}
 		else
 		{
